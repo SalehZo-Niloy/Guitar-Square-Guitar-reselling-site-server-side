@@ -13,11 +13,26 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 const run = async () => {
     try {
+        const categoryCollection = client.db('guitar-square').collection('product-category');
         const userCollection = client.db('guitar-square').collection('users');
+
+        app.get('/categories', async (req, res) => {
+            const query = {};
+
+            const categories = await categoryCollection.find(query).toArray();
+            res.send(categories);
+        })
 
         app.post('/user', async (req, res) => {
             const user = req.body;
             // console.log(user);
+            const email = user.email;
+            // console.log(email);
+            const query = { email: email };
+            const existsUser = await userCollection.findOne(query);
+            if (existsUser) {
+                return res.send({ message: 'User already exists' });
+            }
             const result = await userCollection.insertOne(user);
             res.send(result);
         })
