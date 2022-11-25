@@ -17,10 +17,25 @@ const run = async () => {
         const userCollection = client.db('guitar-square').collection('users');
 
         app.get('/categories', async (req, res) => {
-            const query = {};
+            let query = {};
 
+            const categoryName = req.query.category;
+            if (categoryName) {
+                query = { categoryName: categoryName }
+                const category = await categoryCollection.findOne(query);
+                return res.send(category);
+            }
             const categories = await categoryCollection.find(query).toArray();
             res.send(categories);
+        })
+
+        app.get('/user/role/:email', async (req, res) => {
+            const email = req.params.email;
+            // console.log(email);
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            // console.log(user);
+            res.send({ role: user?.role });
         })
 
         app.post('/user', async (req, res) => {
