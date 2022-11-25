@@ -15,6 +15,7 @@ const run = async () => {
     try {
         const categoryCollection = client.db('guitar-square').collection('product-category');
         const userCollection = client.db('guitar-square').collection('users');
+        const productCollection = client.db('guitar-square').collection('products');
 
         app.get('/categories', async (req, res) => {
             let query = {};
@@ -51,6 +52,16 @@ const run = async () => {
             const result = await userCollection.insertOne(user);
             res.send(result);
         })
+
+        app.post('/products', async (req, res) => {
+            const product = req.body;
+            product.postedAt = new Date();
+            // console.log(product);
+            const result = await productCollection.insertOne(product);
+            res.send(result);
+
+        })
+
     }
     finally {
 
