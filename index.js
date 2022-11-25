@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
@@ -39,6 +39,13 @@ const run = async () => {
             res.send({ role: user?.role });
         })
 
+        app.get('/user', async (req, res) => {
+            const email = req.query.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            res.send(user);
+        })
+
         app.post('/user', async (req, res) => {
             const user = req.body;
             // console.log(user);
@@ -53,6 +60,22 @@ const run = async () => {
             res.send(result);
         })
 
+        app.get('/products', async (req, res) => {
+            const email = req.query.email;
+            // console.log(email);
+            const filter = { sellerEmail: email };
+            const products = await productCollection.find(filter).toArray();
+            res.send(products);
+        })
+
+        app.get('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            // console.log(id);
+            const filter = { categoryId: id };
+            const products = await productCollection.find(filter).toArray();
+            res.send(products);
+        })
+
         app.post('/products', async (req, res) => {
             const product = req.body;
             product.postedAt = new Date();
@@ -60,6 +83,13 @@ const run = async () => {
             const result = await productCollection.insertOne(product);
             res.send(result);
 
+        })
+
+        app.delete('/products/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const result = await productCollection.deleteOne(query);
+            res.send(result);
         })
 
     }
