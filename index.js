@@ -92,6 +92,30 @@ const run = async () => {
             res.send(result);
         })
 
+        app.get('/advertise', async (req, res) => {
+            const query = {
+                isAdvertised: true,
+                isSold: false
+            };
+            const products = await productCollection.find(query).toArray();
+            res.send(products);
+        })
+
+        app.patch('/advertise/:id', async (req, res) => {
+            const id = req.params.id;
+            const state = req.body.state;
+            // console.log(id);
+            // console.log(state);
+            const query = { _id: ObjectId(id) };
+            const updateDoc = {
+                $set: {
+                    isAdvertised: state
+                },
+            };
+            const result = await productCollection.updateOne(query, updateDoc);
+            res.send(result);
+        })
+
     }
     finally {
 
