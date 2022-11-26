@@ -20,6 +20,7 @@ const run = async () => {
         const productCollection = client.db('guitar-square').collection('products');
         const bookingCollection = client.db('guitar-square').collection('bookings');
         const paymentCollection = client.db('guitar-square').collection('payments');
+        const reportCollection = client.db('guitar-square').collection('reports');
 
         app.get('/categories', async (req, res) => {
             let query = {};
@@ -47,6 +48,9 @@ const run = async () => {
             const email = req.query.email;
             const query = { email: email };
             const user = await userCollection.findOne(query);
+            if (!user) {
+                return res.send({ isDeleted: false });
+            }
             res.send(user);
         })
 
@@ -60,7 +64,37 @@ const run = async () => {
             if (existsUser) {
                 return res.send({ message: 'User already exists' });
             }
+            user.isDeleted = false;
             const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+
+        app.patch('/user', async (req, res) => {
+            const email = req.query.email;
+            // console.log(email);
+            const query = { email: email };
+            const updateDoc = {
+                $set: {
+                    isVerified: true
+                },
+            };
+            const result = await userCollection.updateOne(query, updateDoc);
+            res.send(result);
+        })
+
+        app.delete('/user', async (req, res) => {
+            const email = req.query.email;
+
+            const filter = { sellerEmail: email };
+            const deletedProducts = await productCollection.deleteMany(filter);
+
+            const query = { email: email };
+            const updateDoc = {
+                $set: {
+                    isDeleted: true
+                },
+            };
+            const result = await userCollection.updateOne(query, updateDoc);
             res.send(result);
         })
 
@@ -207,6 +241,33 @@ const run = async () => {
             const updateProduct = await productCollection.updateOne(filter, updateDoc);
             res.send(result);
         });
+
+        app.post('/report', async (req, res) => {
+            const reportedProduct = req.body;
+            // console.log(reportedProduct);
+            const query = {};
+            const result = await reportCollection.insertOne(reportedProduct);
+            res.send(result);
+        })
+
+        app.get('/sellers', async (req, res) => {
+            const query = {
+                role: 'seller',
+                isDeleted: false
+            }
+
+            const sellers = await userCollection.find(query).toArray();
+            res.send(sellers);
+        })
+        app.get('/buyers', async (req, res) => {
+            const query = {
+                role: 'buyer',
+                isDeleted: false
+            }
+
+            const buyers = await userCollection.find(query).toArray();
+            res.send(buyers);
+        })
 
     }
     finally {
