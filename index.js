@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 require('dotenv').config();
 const stripe = require('stripe')(process.env.STRIPE_SK);
@@ -13,6 +14,22 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.yarpj5v.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'unauthorized access' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+        if (err) {
+            return res.status(401).send({ message: 'unauthorized access' });
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
+
 const run = async () => {
     try {
         const categoryCollection = client.db('guitar-square').collection('product-category');
@@ -21,6 +38,13 @@ const run = async () => {
         const bookingCollection = client.db('guitar-square').collection('bookings');
         const paymentCollection = client.db('guitar-square').collection('payments');
         const reportCollection = client.db('guitar-square').collection('reports');
+
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            console.log(user);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "30d" });
+            res.send({ token });
+        })
 
         app.get('/categories', async (req, res) => {
             let query = {};
@@ -35,7 +59,7 @@ const run = async () => {
             res.send(categories);
         })
 
-        app.get('/user/role/:email', async (req, res) => {
+        app.get('/user/role/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             // console.log(email);
             const query = { email: email };
@@ -66,7 +90,7 @@ const run = async () => {
             res.send(result);
         })
 
-        app.patch('/user', async (req, res) => {
+        app.patch('/user', verifyJWT, async (req, res) => {
             const email = req.query.email;
             // console.log(email);
             const query = { email: email };
@@ -79,7 +103,7 @@ const run = async () => {
             res.send(result);
         })
 
-        app.delete('/user', async (req, res) => {
+        app.delete('/user', verifyJWT, async (req, res) => {
             const email = req.query.email;
 
             const filter = { sellerEmail: email };
@@ -95,7 +119,7 @@ const run = async () => {
             res.send(result);
         })
 
-        app.get('/products', async (req, res) => {
+        app.get('/products', verifyJWT, async (req, res) => {
             const email = req.query.email;
             // console.log(email);
             const filter = { sellerEmail: email };
@@ -103,7 +127,7 @@ const run = async () => {
             res.send(products);
         })
 
-        app.get('/products/:id', async (req, res) => {
+        app.get('/products/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             // console.log(id);
             const filter = {
@@ -114,7 +138,7 @@ const run = async () => {
             res.send(products);
         })
 
-        app.post('/products', async (req, res) => {
+        app.post('/products', verifyJWT, async (req, res) => {
             const product = req.body;
             product.postedAt = new Date();
             // console.log(product);
@@ -123,7 +147,7 @@ const run = async () => {
 
         })
 
-        app.delete('/products/:id', async (req, res) => {
+        app.delete('/products/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) }
             const result = await productCollection.deleteOne(query);
@@ -144,7 +168,7 @@ const run = async () => {
             res.send({ message: 'Product Sold' });
         })
 
-        app.get('/advertise', async (req, res) => {
+        app.get('/advertise', verifyJWT, async (req, res) => {
             const query = {
                 isAdvertised: true,
                 isSold: false
@@ -153,7 +177,7 @@ const run = async () => {
             res.send(products);
         })
 
-        app.patch('/advertise/:id', async (req, res) => {
+        app.patch('/advertise/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             const state = req.body.state;
             // console.log(id);
@@ -168,7 +192,7 @@ const run = async () => {
             res.send(result);
         })
 
-        app.get('/bookings', async (req, res) => {
+        app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
 
@@ -176,7 +200,7 @@ const run = async () => {
             res.send(orders);
         })
 
-        app.post('/bookings', async (req, res) => {
+        app.post('/bookings', verifyJWT, async (req, res) => {
             const booking = req.body;
             // console.log(booking);
             const query = {
@@ -202,7 +226,7 @@ const run = async () => {
             res.send(product);
         })
 
-        app.post('/create-payment-intent', async (req, res) => {
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const price = req.body.price;
             if (!price) {
                 return res.send({ message: 'Product already Sold' });
@@ -223,7 +247,7 @@ const run = async () => {
             });
         });
 
-        app.post('/payment', async (req, res) => {
+        app.post('/payment', verifyJWT, async (req, res) => {
             const payment = req.body;
             const result = await paymentCollection.insertOne(payment);
             const id = payment.productId;
@@ -239,7 +263,7 @@ const run = async () => {
             res.send(result);
         });
 
-        app.post('/report', async (req, res) => {
+        app.post('/report', verifyJWT, async (req, res) => {
             const reportedProduct = req.body;
             // console.log(reportedProduct);
             const query = {};
@@ -247,13 +271,13 @@ const run = async () => {
             res.send(result);
         })
 
-        app.get('/report', async (req, res) => {
+        app.get('/report', verifyJWT, async (req, res) => {
             const query = {};
             const reportedProducts = await reportCollection.find(query).toArray();
             res.send(reportedProducts);
         })
 
-        app.delete('/report/:id', async (req, res) => {
+        app.delete('/report/:id', verifyJWT, async (req, res) => {
             const id = req.params.id;
             // console.log(id);
             const query = { _id: ObjectId(id) };
@@ -263,7 +287,7 @@ const run = async () => {
             res.send(deleteReport);
         })
 
-        app.get('/sellers', async (req, res) => {
+        app.get('/sellers', verifyJWT, async (req, res) => {
             const query = {
                 role: 'seller',
                 isDeleted: false
@@ -272,7 +296,7 @@ const run = async () => {
             const sellers = await userCollection.find(query).toArray();
             res.send(sellers);
         })
-        app.get('/buyers', async (req, res) => {
+        app.get('/buyers', verifyJWT, async (req, res) => {
             const query = {
                 role: 'buyer',
                 isDeleted: false
