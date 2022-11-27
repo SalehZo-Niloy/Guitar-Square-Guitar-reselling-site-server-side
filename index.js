@@ -48,9 +48,6 @@ const run = async () => {
             const email = req.query.email;
             const query = { email: email };
             const user = await userCollection.findOne(query);
-            if (!user) {
-                return res.send({ isDeleted: false });
-            }
             res.send(user);
         })
 
@@ -250,6 +247,22 @@ const run = async () => {
             res.send(result);
         })
 
+        app.get('/report', async (req, res) => {
+            const query = {};
+            const reportedProducts = await reportCollection.find(query).toArray();
+            res.send(reportedProducts);
+        })
+
+        app.delete('/report/:id', async (req, res) => {
+            const id = req.params.id;
+            // console.log(id);
+            const query = { _id: ObjectId(id) };
+            const deletedProduct = await productCollection.deleteOne(query);
+            const filter = { productId: id };
+            const deleteReport = await reportCollection.deleteMany(filter);
+            res.send(deleteReport);
+        })
+
         app.get('/sellers', async (req, res) => {
             const query = {
                 role: 'seller',
@@ -268,6 +281,8 @@ const run = async () => {
             const buyers = await userCollection.find(query).toArray();
             res.send(buyers);
         })
+
+
 
     }
     finally {
