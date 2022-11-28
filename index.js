@@ -14,7 +14,9 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@cluster0.yarpj5v.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
-
+//----------------------------
+// jwt middlewire
+//----------------------------
 function verifyJWT(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -32,20 +34,30 @@ function verifyJWT(req, res, next) {
 
 const run = async () => {
     try {
+        //----------------------------
+        // all collections
+        //----------------------------
         const categoryCollection = client.db('guitar-square').collection('product-category');
         const userCollection = client.db('guitar-square').collection('users');
         const productCollection = client.db('guitar-square').collection('products');
         const bookingCollection = client.db('guitar-square').collection('bookings');
         const paymentCollection = client.db('guitar-square').collection('payments');
         const reportCollection = client.db('guitar-square').collection('reports');
+        const feedbackCollection = client.db('guitar-square').collection('feedbacks');
 
+        //----------------------------
+        // jwt token creation api
+        //----------------------------
         app.post('/jwt', (req, res) => {
             const user = req.body;
-            console.log(user);
+            // console.log(user);
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "30d" });
             res.send({ token });
         })
 
+        //----------------------------
+        // category get api
+        //----------------------------
         app.get('/categories', async (req, res) => {
             let query = {};
 
@@ -59,6 +71,9 @@ const run = async () => {
             res.send(categories);
         })
 
+        //----------------------------
+        // user crud operation apis start from here,and the first one is to check user role
+        //----------------------------
         app.get('/user/role/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             // console.log(email);
@@ -72,6 +87,9 @@ const run = async () => {
             const email = req.query.email;
             const query = { email: email };
             const user = await userCollection.findOne(query);
+            if (!user) {
+                return res.send({ isDeleted: false });
+            }
             res.send(user);
         })
 
@@ -103,6 +121,9 @@ const run = async () => {
             res.send(result);
         })
 
+        //----------------------------
+        // this delete api deletes all product of buyer, and updates user as deleted so that he can't login again
+        //----------------------------
         app.delete('/user', verifyJWT, async (req, res) => {
             const email = req.query.email;
 
@@ -119,6 +140,9 @@ const run = async () => {
             res.send(result);
         })
 
+        //----------------------------
+        // all product apis start from here
+        //----------------------------
         app.get('/products', verifyJWT, async (req, res) => {
             const email = req.query.email;
             // console.log(email);
@@ -168,6 +192,9 @@ const run = async () => {
             res.send({ message: 'Product Sold' });
         })
 
+        //----------------------------
+        // api for advertising product
+        //----------------------------
         app.get('/advertise', verifyJWT, async (req, res) => {
             const query = {
                 isAdvertised: true,
@@ -192,6 +219,9 @@ const run = async () => {
             res.send(result);
         })
 
+        //----------------------------
+        // apis for handling bookings
+        //----------------------------
         app.get('/bookings', verifyJWT, async (req, res) => {
             const email = req.query.email;
             const query = { email: email };
@@ -219,6 +249,9 @@ const run = async () => {
             }
         })
 
+        //----------------------------
+        // api to get a specific product details
+        //----------------------------
         app.get('/specificProduct/:id', async (req, res) => {
             const id = req.params.id;
             const query = { _id: ObjectId(id) };
@@ -226,6 +259,9 @@ const run = async () => {
             res.send(product);
         })
 
+        //----------------------------
+        // payment intent api
+        //----------------------------
         app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const price = req.body.price;
             if (!price) {
@@ -247,6 +283,9 @@ const run = async () => {
             });
         });
 
+        //----------------------------
+        // payment info storing api
+        //----------------------------
         app.post('/payment', verifyJWT, async (req, res) => {
             const payment = req.body;
             const result = await paymentCollection.insertOne(payment);
@@ -263,6 +302,9 @@ const run = async () => {
             res.send(result);
         });
 
+        //----------------------------
+        // apis for reporting items
+        //----------------------------
         app.post('/report', verifyJWT, async (req, res) => {
             const reportedProduct = req.body;
             // console.log(reportedProduct);
@@ -287,6 +329,9 @@ const run = async () => {
             res.send(deleteReport);
         })
 
+        //----------------------------
+        // api to get sellers
+        //----------------------------
         app.get('/sellers', verifyJWT, async (req, res) => {
             const query = {
                 role: 'seller',
@@ -296,6 +341,10 @@ const run = async () => {
             const sellers = await userCollection.find(query).toArray();
             res.send(sellers);
         })
+
+        //----------------------------
+        // api to get buyers
+        //----------------------------
         app.get('/buyers', verifyJWT, async (req, res) => {
             const query = {
                 role: 'buyer',
@@ -306,6 +355,15 @@ const run = async () => {
             res.send(buyers);
         })
 
+        //----------------------------
+        // feedback storing api
+        //----------------------------
+        app.post('/feedback', async (req, res) => {
+            const feedback = req.body;
+            // console.log(feedback);
+            const result = await feedbackCollection.insertOne(feedback);
+            res.send(result);
+        })
 
 
     }
